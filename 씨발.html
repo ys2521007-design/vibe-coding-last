@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>본교무실 원격 호출 시스템</title>
+    <style>
+        :root {
+            --primary-color: #2b579a;
+            --background-color: #f4f6f9;
+            --card-color: #ffffff;
+            --text-color: #333333;
+        }
+
+        body {
+            font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background-color: var(--card-color);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 450px;
+        }
+
+        h2 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            text-align: center;
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 25px;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        input[type="text"], select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 15px;
+        }
+
+        input[type="text"]:focus, select:focus {
+            border-color: var(--primary-color);
+            outline: none;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background-color: #1e3d6b;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 14px;
+            display: none;
+        }
+        .success { background-color: #e2f0d9; color: #385723; border: 1px solid #c5e0b4; }
+        .error { background-color: #fce4d6; color: #c65911; border: 1px solid #f8cbad; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>본교무실 원격 호출 시스템</h2>
+    <div class="subtitle">시험기간 안전하고 신속한 교사 호출 서비스</div>
+    
+    <form id="callForm">
+        <div class="form-group">
+            <label for="studentId">학번</label>
+            <input type="text" id="studentId" placeholder="예: 30101" required pattern="[0-9]{5}" title="5자리 학번을 입력해주세요.">
+        </div>
+
+        <div class="form-group">
+            <label for="studentName">이름</label>
+            <input type="text" id="studentName" placeholder="홍길동" required>
+        </div>
+
+        <div class="form-group">
+            <label for="purpose">방문 목적</label>
+            <select id="purpose" required>
+                <option value="" disabled selected>방문 목적을 선택하세요</option>
+                <option value="수행평가 제출/질문">수행평가 제출 및 질문</option>
+                <option value="일반 교과 질문">일반 교과 내용 질문</option>
+                <option value="진학/학업 상담">진학 및 학업 상담</option>
+                <option value="기타 용무">기타 개인 용무</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="teacherName">호출할 선생님</label>
+            <select id="teacherName" required>
+                <option value="" disabled selected>명단을 불러오는 중입니다...</option>
+            </select>
+        </div>
+
+        <button type="submit" id="submitBtn" disabled>명단 로드 중...</button>
+    </form>
+
+    <div id="alertMessage" class="message"></div>
+</div>
+
+<script>
+    // ⚠️ 중요: 구글 앱스 스크립트 '새 배포' 후 받은 웹 앱 URL을 입력하세요.
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz2QOS4dMvVmU3f45jbIBPU3Qan8mkW1mbOomRoA2lkCpvMKc5gHs9IFzmXmdrrqopg/exec";
+
+    const teacherSelect = document.getElementById('teacherName');
+    const submitBtn = document.getElementById('submitBtn');
+    const alertMessage = document.getElementById('alertMessage');
+
+    // [추가] 페이지 로드 시 GAS로부터 교사 명단을 동적으로 가져오는 함수
+    window.addEventListener('DOMContentLoaded', () => {
+        fetch(GAS_WEB_APP_URL)
+        .then(response => response.json())
+        .then(data => {
+            if(data.status === "success" && data.teachers) {
+                // 기존 대기 메시지 삭제 후 초기 옵션 설정
+                teacherSelect.innerHTML = '<option value="" disabled selected>선생님을 골라주세요</option>';
+                
+                // 명단 추가
+                data.teachers.forEach(teacher => {
+                    const option = document.createElement('option');
+                    option.value = teacher;
+                    option.textContent = teacher;
+                    teacherSelect.appendChild(option);
+                });
+
+                // 버튼 활성화
+                submitBtn.disabled = false;
+                submitBtn.innerText = "선생님 호출하기";
+            } else {
+                throw new Error("명단 로드 실패");
+            }
+        })
+        .catch(error => {
+            console.error("교사 명단 로드 에러:", error);
+            teacherSelect.innerHTML = '<option value="" disabled>명단을 불러오지 못했습니다.</option>';
+            alertMessage.className = "message error";
+            alertMessage.innerText = "❌ 선생님 명단을 가져오지 못했습니다. 새로고침을 해주세요.";
+            alertMessage.style.display = "block";
+        });
+    });
+
+    // 폼 제출(호출하기) 처리 함수
+    document.getElementById('callForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        submitBtn.disabled = true;
+        submitBtn.innerText = "호출 신호 보내는 중...";
+        alertMessage.style.display = "none";
+
+        const payload = {
+            studentId: document.getElementById('studentId').value,
+            studentName: document.getElementById('studentName').value,
+            purpose: document.getElementById('purpose').value,
+            teacherName: teacherSelect.value
+        };
+
+        fetch(GAS_WEB_APP_URL, {
+            method: 'POST',
+            mode: 'cors',
+            headers: {
+                'Content-Type': 'text/plain'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.status === "success") {
+                alertMessage.className = "message success";
+                alertMessage.innerText = "🔔 호출이 완료되었습니다! 교무실 밖에서 잠시만 대기해주세요.";
+                alertMessage.style.display = "block";
+                document.getElementById('callForm').reset();
+            } else {
+                throw new Error(data.message);
+            }
+        })
+        .catch(error => {
+            alertMessage.className = "message error";
+            alertMessage.innerText = "❌ 오류가 발생했습니다. 다시 시도하거나 운영자에게 문의하세요.";
+            alertMessage.style.display = "block";
+            console.error("Error:", error);
+        })
+        .finally(() => {
+            submitBtn.disabled = false;
+            submitBtn.innerText = "선생님 호출하기";
+        });
+    });
+</script>
+
+</body>
+</html>
